@@ -1,2 +1,2 @@
 # django-auth-seminar
-5/18
+5/17
