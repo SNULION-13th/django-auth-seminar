@@ -1,1 +1,1 @@
-# django-seminar-professor
+# django-auth-seminar
