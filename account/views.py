@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer
 
@@ -14,28 +15,41 @@ from .serializers import (
 )
 from .models import UserProfile
 
-class SignUpView(APIView):
+### 🔻 이 부분만 추가 ####
+def generate_token_in_serialized_data(user, user_profile):
+    token = RefreshToken.for_user(user)
+    refresh_token, access_token = str(token), str(token.access_token)
+    serialized_data = UserProfileSerializer(user_profile).data
+    serialized_data["token"] = {"access": access_token, "refresh": refresh_token}
+    return serialized_data
+### 🔺 이 부분만 추가 ####
+
+class SignupView(APIView):
     @swagger_auto_schema(
           operation_id="회원가입",
           operation_description="회원가입을 진행합니다.",
           request_body=SignUpRequestSerializer,
           responses={201: UserProfileSerializer, 400: "Bad Request"},
-      )
+    )
     def post(self, request):
+        college=request.data.get('college')
+        major=request.data.get('major')
+
         user_serializer = UserSerializer(data=request.data)
         if user_serializer.is_valid(raise_exception=True):
             user = user_serializer.save()
             user.set_password(user.password)
             user.save()
-
-        college = request.data.get("college")
-        major = request.data.get("major")
-
+            
         user_profile = UserProfile.objects.create(
-            user=user, college=college, major=major
+            user=user,
+            college=college,
+            major=major
         )
-        user_profile_serializer = UserProfileSerializer(instance=user_profile)
-        return Response(user_profile_serializer.data, status=status.HTTP_201_CREATED)
+### 🔻 2번 파트 삭제하고 추가 ####
+        serialized_data = generate_token_in_serialized_data(user, user_profile)
+### 🔺 2번 파트 삭제하고 추가 ####
+        return Response(serialized_data, status=status.HTTP_201_CREATED)
 
 
 class SignInView(APIView):
