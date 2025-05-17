@@ -58,16 +58,21 @@ class CommentView(APIView):
         },
     )
     def post(self, request):
-        author_info = request.data.get("author")
+
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        author = request.user
         post_id = request.data.get("post")
         content = request.data.get("content")
 
         # 필수 필드 체크
-        if not (author_info and post_id and content is not None):
-            return Response({"detail": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
+     
 
-        username = author_info.get("username")
-        password = author_info.get("password")
+        post_id = request.data.get("post")
+        content = request.data.get("content")
 
         post = get_post_or_404(post_id)
         if not post:
@@ -100,6 +105,16 @@ class CommentDetailView(APIView):
         },
     )
     def put(self, request, comment_id):
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "please signin"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # 2) 요청자(user)와 content 가져오기
+        author = request.user
+        content = request.data.get("content")
+
         try:
             comment = Comment.objects.get(id=comment_id)
         except:
@@ -138,6 +153,12 @@ class CommentDetailView(APIView):
         responses={204: "No Content", 404: "Not Found", 400: "Bad Request"},
     )
     def delete(self, request, comment_id):
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        author = request.user
+        ### 🔺 이 부분 수정 🔺 ###
         try:
             comment = Comment.objects.get(id=comment_id)
         except:
