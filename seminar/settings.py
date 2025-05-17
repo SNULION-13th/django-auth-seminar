@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'account',
     'tag',
     'comment',
+    'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -138,7 +139,43 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES' : (
-        'rest_framework.permissions.AllowAny',
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',  # 기본적으로 모든 요청을 허용
+    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT를 인증 방식으로 사용
     )
+}
+
+## JWT의 동작 방식 설정
+
+from datetime import timedelta
+
+REST_USE_JWT = True  # Django에서 JWT 사용을 활성화
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Access Token의 유효 기간: 30분
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Refresh Token의 유효 기간: 1일
+    'ROTATE_REFRESH_TOKENS': True,  # Refresh Token을 사용할 때마다 새 토큰 발급
+    'BLACKLIST_AFTER_ROTATION': True,  # 이전 Refresh Token을 블랙리스트에 추가하여 재사용 방지
+    'AUTH_HEADER_TYPES': ('Bearer',),  # 인증 헤더 타입을 "Bearer"로 설정
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),  # Access Token 클래스를 지정
+    'ACCESS_TOKEN': 'access_token',  # Access Token의 이름 지정
+    'REFRESH_TOKEN': 'refresh_token',  # Refresh Token의 이름 지정
+}
+
+
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False, # swagger가 기본으로 사용하는 session auth를 사용하지 않음
+    'SECURITY_DEFINITIONS': {
+        'BearerAuth': { # bearer 토큰을 헤더의 Authorization에 담아서 보냄
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': "JWT Token"
+        }
+    },
+    'SECURITY_REQUIREMENTS': [{
+        'BearerAuth': []
+    }]
 }
