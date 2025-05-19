@@ -12,3 +12,13 @@ class SignInRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
     username = serializers.CharField()
     password = serializers.CharField()
+
+
+class TokenRefreshRequestSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+class LogoutRequestSerializer(serializers.Serializer):
+    refresh=serializers.CharField(
+        help_text="회원가입/로그인 시 발급받은 refresh token",
+        required=True
+    )
