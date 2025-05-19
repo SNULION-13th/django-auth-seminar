@@ -38,12 +38,20 @@ class PostListView(APIView):
         title = request.data.get("title")
         content = request.data.get("content")
         tag_contents = request.data.get("tags")
-        author = request.user
-        if not author.is_authenticated:
+        # body에서 각 data들 쭉 다 가져오고
+        
+        author = request.user 
+        # request에서 user를 찾아보면 자동으로 클라이언트가 보낸 토큰 정보를 긁어온대. 어떻게 되는지 자세한 정보는 잘 모르겠음.
+        # 근데 어쨌든 author.is_au~ 이걸로 토큰 유효 여부를 찾을 수 있는거임.
+        
+        if not author.is_authenticated: # user 안에 있는 기본적인 method를 통해서 바로 가져올 수 있는거다.
+            # 자동으로 된대. 뭐 그렇대 그냥
+            
             return Response(
                 {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
             )
-
+        # 어쨌든 login이 제대로 안되어있으면 권한 없는 걸로 간주하여 unauthor_response 보내기.
+        
         if not title or not content:
             return Response(
                 {"detail": "[title, content] fields missing."},
@@ -98,6 +106,8 @@ class PostDetailView(APIView):
             return Response(
                 {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
             )
+        # 얘도 똑같이 login 안되어있으면 걸리는 과정 추가. 로직 자체는 단순하다~
+        # (다른 login 권한 있어야 할 수 있는 과정들에 모두 이 두 칸만 채워주면 된다. 편안.)
             
         if post.author != author:
             return Response(
