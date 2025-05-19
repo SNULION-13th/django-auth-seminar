@@ -14,6 +14,23 @@ from .serializers import (
 )
 from .models import UserProfile
 
+def generate_token_in_serialized_data(user, user_profile):
+    token = RefreshToken.for_user(user)
+    refresh_token, access_token = str(token), str(token.access_token)
+    serialized_data = UserProfileSerializer(user_profile).data
+    serialized_data["token"] = {"access": access_token, "refresh": refresh_token}
+    return serialized_data
+
+def set_token_on_response_cookie(user, status_code):
+    token = RefreshToken.for_user(user)
+    user_profile = UserProfile.objects.get(user=user)
+    serialized_data = UserProfileSerializer(user_profile).data
+    res = Response(serialized_data, status=status_code)
+    res.set_cookie("refresh_token", value=str(token), httponly=True)
+    res.set_cookie("access_token", value=str(token.access_token), httponly=True)
+    return res
+
+
 class SignUpView(APIView):
     @swagger_auto_schema(
           operation_id="회원가입",
