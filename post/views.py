@@ -159,13 +159,11 @@ class LikeView(APIView):
             return Response(
                 {"detail": "Post not found."}, status=status.HTTP_404_NOT_FOUND
             )
-        ### 🔻 이 부분 수정 🔻 ###
         author = request.user
         if not request.user.is_authenticated:
             return Response(
                 {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
             )
-		    ### 🔺 이 부분 수정 🔺 ###
         is_liked = post.like_set.filter(user=author).count() > 0
 
         if is_liked == True:

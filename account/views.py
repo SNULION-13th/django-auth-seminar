@@ -125,15 +125,12 @@ class SignOutView(APIView):
         operation_id="로그아웃",
         operation_description="로그아웃을 진행합니다.",
         request_body=TokenRefreshRequestSerializer,
-        # manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)],
-        responses={200: "No Content", 401: "Unauthorized", 400: "Bad Request"},
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)],
+        responses={204: "No Content", 401: "Unauthorized", 400: "Bad Request"},
     )
     
-    
     def post(self, request):
-        
         refresh_token = request.data.get("refresh")
-        
         if not refresh_token:
             return Response(
                 {"detail": "no refresh token"},
