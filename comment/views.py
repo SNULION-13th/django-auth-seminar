@@ -56,31 +56,26 @@ class CommentView(APIView):
             403: "password wrong",
             404: "author or post not found.",
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def post(self, request):
-        author_info = request.data.get("author")
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "please signin"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        author = request.user
+
         post_id = request.data.get("post")
         content = request.data.get("content")
 
         # 필수 필드 체크
-        if not (author_info and post_id and content is not None):
+        if not (post_id and content is not None):
             return Response({"detail": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
-
-        username = author_info.get("username")
-        password = author_info.get("password")
 
         post = get_post_or_404(post_id)
         if not post:
             return Response({"detail": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        try:
-            author = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return Response({"detail": "Author not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        # 비밀번호 검증
-        if not author.check_password(password):
-            return Response({"detail": "Incorrect password."}, status=status.HTTP_403_FORBIDDEN)
 
         # 댓글 생성
         comment = Comment.objects.create(post=post, content=content, author=author)
@@ -100,30 +95,25 @@ class CommentDetailView(APIView):
         },
     )
     def put(self, request, comment_id):
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        author = request.user
+
         try:
             comment = Comment.objects.get(id=comment_id)
         except:
             return Response(
                 {"detail": "Comment not found."}, status=status.HTTP_404_NOT_FOUND
             )
-        author_info = request.data.get("author")
+        
+        if author != comment.author:
+            return Response(
+                {"detail": "You are not the author of this comment."}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        
         content = request.data.get("content")
-
-        # 필수 필드 체크
-        if not (author_info and content is not None):
-            return Response({"detail": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
-
-        username = author_info.get("username")
-        password = author_info.get("password")
-
-        try:
-            author = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return Response({"detail": "Author not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        # 비밀번호 검증
-        if not author.check_password(password):
-            return Response({"detail": "Incorrect password."}, status=status.HTTP_403_FORBIDDEN)
 
         # 댓글 수정
         comment.content = content
@@ -136,8 +126,15 @@ class CommentDetailView(APIView):
         operation_description="댓글을 삭제합니다.",
         request_body=SignInRequestSerializer,
         responses={204: "No Content", 404: "Not Found", 400: "Bad Request"},
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def delete(self, request, comment_id):
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        author = request.user
+
         try:
             comment = Comment.objects.get(id=comment_id)
         except:
@@ -145,23 +142,6 @@ class CommentDetailView(APIView):
                 {"detail": "Comment not found."}, status=status.HTTP_404_NOT_FOUND
             )
         
-        author_info = request.data
-
-        # 필수 필드 체크
-        if author_info is None:
-            return Response({"detail": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
-
-        username = author_info.get("username")
-        password = author_info.get("password")
-
-        try:
-            author = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return Response({"detail": "Author not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        # 비밀번호 검증
-        if not author.check_password(password):
-            return Response({"detail": "Incorrect password."}, status=status.HTTP_403_FORBIDDEN)
         # 본인이 쓴 댓글인지 검증
         if comment.author != author:
             return Response(
