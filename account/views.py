@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer
+from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer, LogOutRequestSerializer
 from rest_framework_simplejwt.tokens import RefreshToken 
 
 from .serializers import (
@@ -117,4 +117,39 @@ class TokenRefreshView(APIView):
         new_access_token = str(RefreshToken(refresh_token).access_token)
         response = Response({"detail": "token refreshed"}, status=status.HTTP_200_OK)
         response.set_cookie("access_token", value=str(new_access_token), httponly=True)
+        return response
+
+class LogOutView(APIView):
+    @swagger_auto_schema(
+        operation_id="로그 아웃",
+        operation_description="사용자를 로그아웃 시킵니다.",
+        request_body=LogOutRequestSerializer,
+        responses={204 : "No content", 401: "Unauthorized", 400: "Bad Request"},
+        manual_parameters=[openapi.Parameter('Authorization', openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)],
+    )
+    def post(self, request):
+        #### 0
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "please signin."}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        refresh_token = request.data.get("refresh")
+        #### 1
+        if not refresh_token:
+            return Response(
+                {"detail": "no refresh token."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+        #### 2
+            RefreshToken(refresh_token).verify()
+        except:
+            return Response(
+                {"detail": "please signin again."}, status=status.HTTP_401_UNAUTHORIZED
+            )
+            
+        #### 3
+        RefreshToken(refresh_token).blacklist()
+        response = Response({"detail": "log out"}, status=status.HTTP_204_NO_CONTENT)
         return response
