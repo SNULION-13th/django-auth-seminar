@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
 from drf_yasg import openapi
-from .models import Post, Like
+from .models import Post, Like, User
 from .serializers import PostSerializer, TagSerializer
 from .request_serializers import PostListRequestSerializer, PostDetailRequestSerializer
 from account.models import User
@@ -170,31 +170,13 @@ class LikeView(APIView):
             return Response(
                 {"detail": "Post not found."}, status=status.HTTP_404_NOT_FOUND
             )
-        author_info = request.data
-        if not author_info:
+        
+        author = request.user
+        if not request.user.is_authenticated:
             return Response(
-                {"detail": "author field missing."}, status=status.HTTP_400_BAD_REQUEST
+                {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
             )
-        username = author_info.get("username")
-        password = author_info.get("password")
-        if not username or not password:
-            return Response(
-                {"detail": "[username, password] fields missing."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        ### 2 ###
-        try:
-            author = User.objects.get(username=username)
-            if not author.check_password(password):
-                return Response(
-                    {"detail": "Password is incorrect."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        except:
-            return Response(
-                {"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
+        
         ### 3 ###
         is_liked = post.like_set.filter(user=author).count() > 0
 
