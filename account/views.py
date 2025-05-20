@@ -1,13 +1,13 @@
 from django.contrib.auth.models import User
 from django.contrib import auth
-from rest_framework import status
+from rest_framework import status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from rest_framework_simplejwt.tokens import RefreshToken 
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
-from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer
+from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer, LogoutSerializer
 
 from .serializers import (
     UserSerializer,
@@ -111,4 +111,23 @@ class TokenRefreshView(APIView):
         response = Response({"detail": "token refreshed"}, status=status.HTTP_200_OK)
         response.set_cookie("access_token", value=str(new_access_token), httponly=True)
         return response
-    
+
+class LogoutView(APIView):
+    @swagger_auto_schema(
+        operation_id="사용자 로그아웃",
+        operation_description="사용자를 로그아웃 시킵니다.",
+        request_body=LogoutSerializer,
+        responses={401: "please signin", 400: 'Bad Request', 204:"No Content"},
+    )
+    def post(self, request):
+        serializer = LogoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        refresh_token = serializer.validated_data['refresh']
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError:
+            return Response({"detail": "invalid refresh token"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
