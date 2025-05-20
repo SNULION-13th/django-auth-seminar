@@ -50,11 +50,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'post',
     'drf_yasg',
-        'rest_framework_simplejwt',  # 🔹 JWT 라이브러리 추가
-
+    'rest_framework_simplejwt',  # 🔹 JWT 라이브러리 추가
     'account',
     'tag',
     'comment',
+    "rest_framework_simplejwt.token_blacklist",
 ]
 
 MIDDLEWARE = [

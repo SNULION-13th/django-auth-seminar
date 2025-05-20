@@ -1,7 +1,7 @@
 from drf_yasg.utils import swagger_auto_schema
 from django.shortcuts import render
-from rest_framework.views import APIView
 from rest_framework import status
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Post, Like
 from .serializers import PostSerializer, TagSerializer
@@ -62,7 +62,6 @@ class PostListView(APIView):
         serializer = PostSerializer(post)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    
 class PostDetailView(APIView):
     @swagger_auto_schema(
         operation_id="게시글 상세 조회",
@@ -92,13 +91,13 @@ class PostDetailView(APIView):
             return Response(
                 {"detail": "Post Not found."}, status=status.HTTP_404_NOT_FOUND
             )
-    ### 🔻 이 부분 수정 🔻 ###
+        
         author = request.user
         if not author.is_authenticated:
             return Response(
                 {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
             )
-		### 🔺 이 부분 수정 🔺 ###
+        
         if post.author != author:
             return Response(
                 {"detail": "You are not the author of this post."},
@@ -106,6 +105,7 @@ class PostDetailView(APIView):
             )
         post.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
     @swagger_auto_schema(
         operation_id="게시글 수정",
         operation_description="게시글을 수정합니다.",
@@ -193,7 +193,6 @@ class LikeView(APIView):
         
         is_liked = post.like_set.filter(user=author).count() > 0
 
-        ### 4 ###
         if is_liked == True:
             post.like_set.get(user=author).delete()
             print("좋아요 취소")
