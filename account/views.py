@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer
+from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer, LogoutRequestSerializer
 
 from .serializers import (
     UserSerializer,
@@ -14,6 +14,8 @@ from .serializers import (
 )
 from .models import UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
+
 
 
 def generate_token_in_serialized_data(user, user_profile):
@@ -116,3 +118,28 @@ class TokenRefreshView(APIView):
         response.set_cookie("access_token", value=str(new_access_token), httponly=True)
         return response
         
+
+class LogoutView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id="로그아웃",
+        operation_description="사용자를 로그아웃 시킵니다.",
+        request_body=LogoutRequestSerializer,
+        response={401 : "Unauthorized", 400 : "Bad Request", 204 : "No Content"},
+    )
+    def post (self, request):
+        serializer = LogoutRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        refresh_token = serializer.validated_data.get('refresh')
+        
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            response = Response(status=status.HTTP_204_NO_CONTENT)
+            response.delete_cookie("access_token")
+            response.delete_cookie("refresh_token")
+            return response
+        except Exception:
+            return Response ({"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED)
