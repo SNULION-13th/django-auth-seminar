@@ -11,6 +11,7 @@ from account.request_serializers import (
     SignInRequestSerializer,
     SignUpRequestSerializer,
     TokenRefreshRequestSerializer,
+    SignOutRequestSerializer,
 )
 
 
@@ -83,6 +84,39 @@ class SignInView(APIView):
             return Response(
                 {"message": "User does not exist"}, status=status.HTTP_404_NOT_FOUND
             )
+
+
+class SignOutView(APIView):
+    @swagger_auto_schema(
+        operation_id="로그아웃",
+        operation_description="로그아웃하며 refresh 토큰을 블랙리스트에 추가합니다.",
+        request_body=SignOutRequestSerializer,
+        manual_parameters=[
+            openapi.Parameter(
+                "Authorization",
+                openapi.IN_HEADER,
+                description="access token",
+                type=openapi.TYPE_STRING,
+            )
+        ],
+        responses={204: "", 401: "Unauthorized", 400: "Bad Request"},
+    )
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        if refresh_token == None:
+            return Response(
+                {"detail": "no refresh token"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        RefreshToken(refresh_token).verify()
+        token = RefreshToken(token=refresh_token)
+        token.blacklist()
+        return Response(
+            {"Message": "signout success"}, status=status.HTTP_204_NO_CONTENT
+        )
 
 
 class TokenRefreshView(APIView):
