@@ -91,6 +91,35 @@ class SignInView(APIView):
                 {"message": "User does not exist"}, status=status.HTTP_404_NOT_FOUND
             )
         
+class SignOutView(APIView):
+    @swagger_auto_schema(
+        operation_id="로그아웃",
+        operation_description="로그아웃합니다.",
+        request_body=TokenRefreshRequestSerializer,
+        responses={204: "No Content", 401: "Unauthorized", 400: "Bad Request" },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="refresh token", type=openapi.TYPE_STRING, required=True)]
+    )
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+
+        if not refresh_token:
+            return Response(
+                {"detail": "no refresh token"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except:
+            return Response(
+                {"detail": "please signin again."}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+        return response
+        
 class TokenRefreshView(APIView):
     @swagger_auto_schema(
         operation_id="토큰 재발급",
