@@ -93,6 +93,7 @@ class SignOutView(APIView):
             )
             
         response = Response({}, status=status.HTTP_204_NO_CONTENT)
+        response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
         return response
 
