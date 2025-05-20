@@ -5,7 +5,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 
 from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer,TokenRefreshRequestSerializer
 
@@ -16,12 +18,14 @@ from .serializers import (
 from .models import UserProfile
 
 ### 🔻 이 부분만 추가 ####
+'''
 def generate_token_in_serialized_data(user, user_profile):
     token = RefreshToken.for_user(user)
     refresh_token, access_token = str(token), str(token.access_token)
     serialized_data = UserProfileSerializer(user_profile).data
     serialized_data["token"] = {"access": access_token, "refresh": refresh_token}
     return serialized_data
+'''
 ### 🔺 이 부분만 추가 ####
 def set_token_on_response_cookie(user, status_code):
             token = RefreshToken.for_user(user)
@@ -67,11 +71,6 @@ class SignInView(APIView):
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
-        if username is None or password is None:
-            return Response(
-                {"message": "missing fields ['username', 'password'] in query_params"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         try:
             user = User.objects.get(username=username)
             if not user.check_password(password):
@@ -79,9 +78,9 @@ class SignInView(APIView):
                     {"message": "Password is incorrect"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            user_profile = UserProfile.objects.get(user=user)
-            serialized_data = generate_token_in_serialized_data(user, user_profile)
-            return Response(serialized_data,status = status.HTTP_200_OK)
+### 🔻 이 부분만 변경 ####
+            return set_token_on_response_cookie(user, status_code=status.HTTP_200_OK)
+### 🔺 이 부분만 변경 ####
 
         except User.DoesNotExist:
             return Response(
@@ -119,3 +118,40 @@ class TokenRefreshView(APIView):
         response.set_cookie("access_token", value=str(new_access_token), httponly=True)
         return response
     
+class LogOutView(APIView):
+    @swagger_auto_schema(
+        operation_id="로그아웃",
+        operation_description="사용자의 refresh token을 blacklist에 추가 후 폐기",
+        request_body=TokenRefreshRequestSerializer,
+        responses={204: "No content", 401: "Unauthorized", 400: "Bad Request"},
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
+    )
+    def post(self, request): #상태 변화가 나타나기 때문에 post
+        author = request.user #access token이 header에 있으면, token decode를 통해 user를 가져옴
+        if not author.is_authenticated:
+            return Response(
+                {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        '''
+        serializer = TokenRefreshRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        refresh_token = serializer.validated_data["refresh"]
+        '''
+        refresh_token = request.data.get("refresh") 
+        try:
+            token_obj = RefreshToken(refresh_token) #RefreshToken:입력받은 token decoding
+            #"user_id":디코딩된 refresh_token에 포함된 속성
+            
+            if int(token_obj["user_id"]) != request.user.id:
+                print("🔐 access user:", request.user.id)
+                print("🔐 refresh token user:", token_obj['user_id'])
+                return Response({"detail":"Token does not match logged-in user"},status=403)
+        
+        except TokenError:
+            return Response({"detail":"Invalid token"},status =400)   
+        try:
+            token_obj.blacklist()
+            return Response(status=204)
+        except AttributeError:
+            return Response({"detail": "Token blacklisting not enabled"}, status=500)
+        
