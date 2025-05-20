@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer
+from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer, SignOutRequestSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (
@@ -112,5 +112,45 @@ class TokenRefreshView(APIView):
         new_access_token = str(RefreshToken(refresh_token).access_token)
         response = Response({"detail": "token refreshed"}, status=status.HTTP_200_OK)
         response.set_cookie("access_token", value=str(new_access_token), httponly=True)
+        return response
+    
+
+class SignOutView(APIView):
+    @swagger_auto_schema(
+        operation_id="로그아웃",
+        operation_description="로그아웃을 진행합니다.",
+        responses={200: "OK", 401: "Unauthorized", 400: "Bad Request", 204: "No Content"},
+        request_body=SignOutRequestSerializer,
+        manual_parameters=[
+            openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING, required=True)
+            ],
+
+    )
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+        
+        # refresh 토큰이 없다면 400 BAD_REQUEST
+        if not refresh_token:
+            return Response(
+                {"detail": "no refresh token"}, status=status.HTTP_400_BAD_REQUEST
+            )   
+        
+        try:
+            # refresh 토큰이 유효한지 검증
+            token = RefreshToken(refresh_token)
+            token.verify()
+        except:
+            return Response(
+                {"detail": "please signin again."}, status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # refresh 토큰을 블랙리스트에 추가
+        token.blacklist()
+
+        # 쿠키에서 access_token과 refresh_token 삭제
+        response = Response({"detail": "logout success"}, status=status.HTTP_200_OK)
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+
         return response
     
