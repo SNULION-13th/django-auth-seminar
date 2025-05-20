@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'tag',
     'comment',
     'rest_framework_simplejwt',
+    "rest_framework_simplejwt.token_blacklist",
 ]
 
 MIDDLEWARE = [
@@ -160,6 +161,7 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),  # 🔹 Access Token 클래스를 지정
     'ACCESS_TOKEN': 'access_token',  # 🔹 Access Token의 이름 지정
     'REFRESH_TOKEN': 'refresh_token',  # 🔹 Refresh Token의 이름 지정
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 SWAGGER_SETTINGS = {
