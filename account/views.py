@@ -1,28 +1,33 @@
-from django.contrib.auth.models import User
 from django.contrib import auth
+from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken #추가
-from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer
-
-
-from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer
-
+from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, SignOutRequestSerializer, TokenRefreshRequestSerializer
 from .serializers import (
     UserSerializer,
     UserProfileSerializer,
 )
 from .models import UserProfile
 
+def set_token_on_response_cookie(user, status_code):
+    token = RefreshToken.for_user(user)
+    user_profile = UserProfile.objects.get(user=user)
+    serialized_data = UserProfileSerializer(user_profile).data
+    res = Response(serialized_data, status=status_code)
+    res.set_cookie("refresh_token", value=str(token), httponly=True)
+    res.set_cookie("access_token", value=str(token.access_token), httponly=True)
+    return res
+
 class SignUpView(APIView):
     @swagger_auto_schema(
-        operation_id="회원가입",
-        operation_description="회원가입을 진행합니다.",
-        request_body=SignUpRequestSerializer,
-        responses={201: UserProfileSerializer, 400: "Bad Request"},
+    operation_id="회원가입",
+    operation_description="회원가입을 진행합니다.",
+    request_body=SignUpRequestSerializer,
+    responses={201: UserProfileSerializer, 400: "Bad Request"},
     )
     def post(self, request):
         college=request.data.get('college')
@@ -34,14 +39,12 @@ class SignUpView(APIView):
             user.set_password(user.password)
             user.save()
             
-        user_profile = UserProfile.objects.create(
+        UserProfile.objects.create(
             user=user,
             college=college,
             major=major
         )
-### 🔻 이 부분만 추가 ####
         return set_token_on_response_cookie(user, status_code=status.HTTP_201_CREATED)
-### 🔺 이 부분만 추가 ####
 
 class SignInView(APIView):
     @swagger_auto_schema(
@@ -66,25 +69,33 @@ class SignInView(APIView):
             return Response(
                 {"message": "User does not exist"}, status=status.HTTP_404_NOT_FOUND
             )
+        
+class SignOutView(APIView):
+    @swagger_auto_schema(
+        operation_id="로그아웃",
+        operation_description="refresh token, blacklist를 활용하여 로그아웃을 진행합니다.",
+        request_body=SignOutRequestSerializer,
+        responses={204: "No Content", 400: "Bad Request", 401: "Unauthorized"},
+    )
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+        
+        if not refresh_token:
+            return Response(
+                {"detail": "no refresh token"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
-
-def generate_token_in_serialized_data(user, user_profile):
-    token = RefreshToken.for_user(user)
-    user_profile_serializer = UserProfileSerializer(user_profile)
-    res = Response(user_profile_serializer.data, status=status.HTTP_201_CREATED)
-    res.set_cookie('refresh_token', value=str(token), httponly=True)
-    res.set_cookie('access_token', value=str(token.access_token), httponly=True)
-    return res
-
-def set_token_on_response_cookie(user, status_code):
-    token = RefreshToken.for_user(user)
-    user_profile = UserProfile.objects.get(user=user)
-    serialized_data = UserProfileSerializer(user_profile).data
-    res = Response(serialized_data, status=status_code)
-    res.set_cookie("refresh_token", value=str(token), httponly=True)
-    res.set_cookie("access_token", value=str(token.access_token), httponly=True)
-    return res
-
+        try:
+            RefreshToken(refresh_token).blacklist()
+        except:
+            return Response(
+                {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+            
+        response = Response({}, status=status.HTTP_204_NO_CONTENT)
+        response.delete_cookie("access_token")
+        response.delete_cookie("refresh_token")
+        return response
 
 
 class TokenRefreshView(APIView):
@@ -97,21 +108,18 @@ class TokenRefreshView(APIView):
     def post(self, request):
         refresh_token = request.data.get("refresh")
         
-        #### 1
         if not refresh_token:
             return Response(
                 {"detail": "no refresh token"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
-        #### 2
             RefreshToken(refresh_token).verify()
         except:
             return Response(
                 {"detail": "please signin again."}, status=status.HTTP_401_UNAUTHORIZED
             )
             
-        #### 3
         new_access_token = str(RefreshToken(refresh_token).access_token)
         response = Response({"detail": "token refreshed"}, status=status.HTTP_200_OK)
         response.set_cookie("access_token", value=str(new_access_token), httponly=True)
