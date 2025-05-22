@@ -1,21 +1,22 @@
 from django.contrib.auth.models import User
-from django.contrib import auth
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from rest_framework_simplejwt.tokens import RefreshToken #추가
-from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer
 
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
-from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer
-
-from .serializers import (
-    UserSerializer,
-    UserProfileSerializer,
+from account.request_serializers import (
+    SignInRequestSerializer,
+    SignUpRequestSerializer,
+    TokenRefreshRequestSerializer,
 )
+
+from .serializers import UserSerializer, UserProfileSerializer
 from .models import UserProfile
+
 
 class SignUpView(APIView):
     @swagger_auto_schema(
@@ -48,7 +49,7 @@ class SignInView(APIView):
         operation_id="로그인",
         operation_description="로그인을 진행합니다.",
         request_body=SignInRequestSerializer,
-        responses={200: UserSerializer, 404: "Not Found", 400: "Bad Request"},
+        responses={204: "No Content", 404: "Not Found", 400: "Bad Request"},
     )
     def post(self, request):
         username = request.data.get("username")
@@ -116,3 +117,57 @@ class TokenRefreshView(APIView):
         response = Response({"detail": "token refreshed"}, status=status.HTTP_200_OK)
         response.set_cookie("access_token", value=str(new_access_token), httponly=True)
         return response
+    
+class SignOutView(APIView):
+    @swagger_auto_schema(
+        operation_id="로그아웃",
+        operation_description="사용자를 로그아웃 시킵니다.",
+        # Authorization 헤더를 명시적으로 요구
+        manual_parameters=[
+            openapi.Parameter(
+                name='Authorization',
+                in_=openapi.IN_HEADER,
+                description='Bearer <access_token>',
+                type=openapi.TYPE_STRING,
+                required=True,
+            )
+    
+        ],
+        request_body=TokenRefreshRequestSerializer,
+        responses={
+            204: openapi.Response(description="No Content"),
+            400: openapi.Response(description="Bad Request"),
+            401: openapi.Response(description="Unauthorized"),
+        },
+    )
+    def post(self, request):
+        # 1) 인증 헤더 검사
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {"detail": "please signin"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # 2) body의 refresh 토큰 검사
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            return Response(
+                {"detail": "no refresh token"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3) 블랙리스트 등록
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+        except TokenError:
+            return Response(
+                {"detail": "token is invalid or already blacklisted"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # 4) 쿠키 삭제 후 204 반환
+        res = Response(status=status.HTTP_204_NO_CONTENT)
+        res.delete_cookie("access_token")
+        res.delete_cookie("refresh_token")
+        return res

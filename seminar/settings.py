@@ -43,8 +43,12 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
+     'rest_framework',                # ← 이 줄을 꼭 추가해주세요
+
     'django.contrib.auth',
     'django.contrib.contenttypes',
+    'rest_framework_simplejwt.token_blacklist',  # ← 이 줄 추가
+
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
