@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer
+from account.request_serializers import SignInRequestSerializer, SignUpRequestSerializer, TokenRefreshRequestSerializer, SignOutRequestSerializer
 
 from .serializers import (
     UserSerializer,
@@ -14,7 +14,7 @@ from .serializers import (
 )
 from .models import UserProfile
 
-from rest_framework_simplejwt.tokens import RefreshToken  ## 추가
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
 
 def generate_token_in_serialized_data(user, user_profile):
     token = RefreshToken.for_user(user)
@@ -54,7 +54,6 @@ class SignUpView(APIView):
         )
         
         return set_token_on_response_cookie(user, status_code=status.HTTP_201_CREATED)
-
 
 class SignInView(APIView):
     @swagger_auto_schema(
@@ -113,4 +112,31 @@ class TokenRefreshView(APIView):
         new_access_token = str(RefreshToken(refresh_token).access_token)
         response = Response({"detail": "token refreshed"}, status=status.HTTP_200_OK)
         response.set_cookie("access_token", value=str(new_access_token), httponly=True)
+        return response
+
+class SignOutView(APIView):
+    @swagger_auto_schema(
+        operation_id="로그아웃",
+        operation_description="로그아웃을 진행합니다.",
+        request_body=SignOutRequestSerializer,
+        responses={204: "No Content", 400: "Bad Request", 401: "Unauthorized"},
+    )
+    def post(self, request):
+        refresh_token = request.data.get("refresh")
+        
+        if not refresh_token:
+            return Response(
+                {"detail": "no refresh token"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+           RefreshToken(refresh_token).verify()
+        except:
+            return Response(
+                {"detail": "please signin."}, status=status.HTTP_401_UNAUTHORIZED
+            )
+            
+        response = Response({}, status=status.HTTP_204_NO_CONTENT)
+        response.delete_cookie("refresh_token")
+        response.delete_cookie("access_token")
         return response
