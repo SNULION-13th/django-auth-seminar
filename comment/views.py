@@ -56,6 +56,7 @@ class CommentView(APIView):
             403: "password wrong",
             404: "author or post not found.",
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)],
     )
     def post(self, request):
         if not request.user.is_authenticated:
@@ -95,6 +96,7 @@ class CommentDetailView(APIView):
             403: "password wrong",
             404: "author or post not found.",
         },
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)],
     )
     def put(self, request, comment_id):
         ### 🔻 이 부분 수정 🔻 ###
@@ -133,8 +135,10 @@ class CommentDetailView(APIView):
         operation_description="댓글을 삭제합니다.",
         request_body=SignInRequestSerializer,
         responses={204: "No Content", 404: "Not Found", 400: "Bad Request"},
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)],
     )
     def delete(self, request, comment_id):
+        
         if not request.user.is_authenticated:
             return Response(
                 {"detail": "please signin"}, status=status.HTTP_401_UNAUTHORIZED
@@ -146,6 +150,12 @@ class CommentDetailView(APIView):
         except:
             return Response(
                 {"detail": "Comment not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if author != comment.author:
+            return Response(
+                {"detail": "You are not the author of this comment."},
+                status=status.HTTP_403_FORBIDDEN,
             )
         
         comment.delete()

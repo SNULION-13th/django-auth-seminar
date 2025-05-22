@@ -20,7 +20,6 @@ class PostListView(APIView):
             404: "Not Found",
             400: "Bad Request",
         },
-        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def get(self, request):
         posts = Post.objects.all()
@@ -32,6 +31,7 @@ class PostListView(APIView):
         operation_description="게시글을 생성합니다.",
         request_body=PostListRequestSerializer,
         responses={201: PostSerializer, 404: "Not Found", 400: "Bad Request"},
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)]
     )
     def post(self, request):
         title = request.data.get("title")
@@ -161,6 +161,7 @@ class LikeView(APIView):
         operation_description="좋아요를 토글합니다. 이미 좋아요가 눌려있으면 취소합니다.",
         request_body=SignInRequestSerializer,
         responses={200: PostSerializer, 404: "Not Found", 400: "Bad Request"},
+        manual_parameters=[openapi.Parameter("Authorization", openapi.IN_HEADER, description="access token", type=openapi.TYPE_STRING)],
     )
     def post(self, request, post_id):
         ### 1 ###
